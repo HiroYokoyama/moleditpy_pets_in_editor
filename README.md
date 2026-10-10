@@ -1,7 +1,11 @@
 # Pets in Editor for MoleditPy
 
-**Author:** HiroYokoyama  
-**Supported MoleditPy:** 4.x
+[![Tests](https://github.com/HiroYokoyama/moleditpy_pets_in_editor/actions/workflows/tests.yml/badge.svg)](https://github.com/HiroYokoyama/moleditpy_pets_in_editor/actions/workflows/tests.yml)
+[![MoleditPy](https://img.shields.io/badge/MoleditPy->=4.0.0-3577F7)](https://github.com/HiroYokoyama/python_molecular_editor)
+[![GitHub tag](https://img.shields.io/github/v/tag/HiroYokoyama/moleditpy_pets_in_editor?label=version)](https://github.com/HiroYokoyama/moleditpy_pets_in_editor/tags)
+[![GitHub Downloads](https://img.shields.io/github/downloads/HiroYokoyama/moleditpy_pets_in_editor/total)](https://github.com/HiroYokoyama/moleditpy_pets_in_editor/releases)
+
+Repo: [https://github.com/HiroYokoyama/moleditpy_pets_in_editor](https://github.com/HiroYokoyama/moleditpy_pets_in_editor)
 
 A MoleditPy 4.x plugin that displays a Codex-compatible animated pet across the
 whole application window. The overlay is transparent to mouse input and does
@@ -27,32 +31,27 @@ not modify molecular data.
 
 ```text
 moleditpy_pets_in_editor/
-├── .github/workflows/
+├── .github/
 ├── pets_in_editor/
 │   ├── __init__.py
 │   ├── animation.py
 │   ├── overlay.py
 │   ├── pet_loader.py
 │   └── settings.py
-├── scripts/
 ├── tests/
 ├── LICENSE
 ├── README.md
 ├── SECURITY.md
 ├── CONTRIBUTING.md
+├── CODE_OF_CONDUCT.md
 ├── .gitignore
 └── ruff.toml
 ```
 
 ## Install in MoleditPy
 
-Build an installable ZIP:
-
-```bash
-python scripts/build_plugin_zip.py
-```
-
-Then install `pets_in_editor-0.1.0.zip` with MoleditPy's Plugin Manager, or copy
+Download `pets_in_editor_<version>.zip` from the
+[Releases](https://github.com/HiroYokoyama/moleditpy_pets_in_editor/releases) page and install it with MoleditPy's Plugin Manager, or copy
 the `pets_in_editor` folder to:
 
 - Windows: `%USERPROFILE%\.moleditpy\plugins\pets_in_editor\`
