@@ -16,9 +16,7 @@ class Track:
 def _row(columns: int, row: int, count: int, duration: int, final: int) -> Track:
     count = min(count, columns)
     frames = tuple(row * columns + column for column in range(count))
-    durations = tuple(
-        final if column == count - 1 else duration for column in range(count)
-    )
+    durations = tuple(final if column == count - 1 else duration for column in range(count))
     return Track(frames, durations)
 
 
@@ -50,7 +48,11 @@ def default_tracks(pet) -> dict[str, Track]:
         "running": _row(columns, 7, 6, 120, 220),
         "review": _row(columns, 8, 6, 150, 280),
     }
-    return {name: track for name, track in tracks.items() if track.frames}
+    return {
+        name: track
+        for name, track in tracks.items()
+        if track.frames and all(frame < pet.frame_count for frame in track.frames)
+    }
 
 
 def _manifest_track(pet, state: str) -> Track | None:
@@ -67,9 +69,7 @@ def _manifest_track(pet, state: str) -> Track | None:
     clean = tuple(
         value
         for value in frames
-        if isinstance(value, int)
-        and not isinstance(value, bool)
-        and 0 <= value < pet.frame_count
+        if isinstance(value, int) and not isinstance(value, bool) and 0 <= value < pet.frame_count
     )
     if not clean:
         return None
@@ -91,15 +91,20 @@ class Animator:
             raise ValueError("Unable to decode sprite sheet; check Qt image support")
 
         self._defaults = default_tracks(pet)
+        self._tracks = {
+            state: _manifest_track(pet, state) or track for state, track in self._defaults.items()
+        }
+        for state in pet.manifest.get("animations", {}) or {}:
+            custom = _manifest_track(pet, state)
+            if custom is not None:
+                self._tracks[state] = custom
+        self._frames = {}
         self.state = "idle"
         self.index = 0
         self.elapsed = 0
 
     def track(self, state: str) -> Track:
-        custom = _manifest_track(self.pet, state)
-        if custom is not None:
-            return custom
-        return self._defaults.get(state, self._defaults["idle"])
+        return self._tracks.get(state, self._tracks["idle"])
 
     def set_state(self, state: str):
         if state != self.state:
@@ -113,6 +118,7 @@ class Animator:
             return
 
         self.elapsed += max(0, int(milliseconds))
+        self.elapsed %= sum(track.durations_ms)
         while self.elapsed >= track.durations_ms[self.index]:
             self.elapsed -= track.durations_ms[self.index]
             self.index = (self.index + 1) % len(track.frames)
@@ -122,9 +128,11 @@ class Animator:
         frame = track.frames[self.index % len(track.frames)]
         column = frame % self.pet.columns
         row = frame // self.pet.columns
-        return self.sheet.copy(
-            column * self.pet.frame_width,
-            row * self.pet.frame_height,
-            self.pet.frame_width,
-            self.pet.frame_height,
-        )
+        if frame not in self._frames:
+            self._frames[frame] = self.sheet.copy(
+                column * self.pet.frame_width,
+                row * self.pet.frame_height,
+                self.pet.frame_width,
+                self.pet.frame_height,
+            )
+        return self._frames[frame]

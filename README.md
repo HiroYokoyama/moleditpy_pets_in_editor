@@ -15,6 +15,8 @@ not modify molecular data.
 
 - Whole-application Qt overlay.
 - All commands live under `Plugins → Pets in Editor → …`.
+- **Settings** combines pet selection, visibility, size, and movement speed with an animated preview. Save applies changes; Cancel keeps your current settings.
+- **Select Pet** opens on the currently selected pet, including when visibility is disabled.
 - Pet visibility is controlled by `Toggle Pet Visibility`; no toolbar button is added.
 - The overlay is registered with MoleditPy's window registry, so `Reload All Plugins` does not duplicate pets.
 - Codex `pet.json` packages.
@@ -23,9 +25,33 @@ not modify molecular data.
 - `spriteVersionNumber: 2` 1536x2288 (8x11) layout.
 - Optional manifest `frame` and `animations` data.
 - Directional movement uses the standard right/left movement rows.
+- Set movement speed to zero for a stationary pet with an idle animation.
+- Pets fit inside the editor window and pause while the window is hidden or minimized.
+- Size and speed changes preserve the current pet's position.
+- Pets pause their movement and use the waiting animation during built-in 2D-to-3D conversion or optimization, and the review animation while dragging 3D atoms or groups.
+- Explicit calculation errors show the failed animation, completion messages show a wave, and cancellation shows idle briefly before normal movement resumes.
 - Pet packages are imported to `~/.moleditpy/pets/`.
 - No Codex installation or pre-existing pet directory is required.
 - Settings are stored in `pets_in_editor/settings.json` inside the plugin directory.
+- Personal settings are excluded from Git and release ZIPs.
+
+## Version 0.2.0
+
+Adds a settings dialog with an animated pet preview, improves movement and small-window behavior,
+and reports menu action failures without interrupting the editor. Imports are staged before
+publishing a complete pet package; invalid installed packages are logged and skipped. Custom
+sheets with fewer animation rows fall back to idle instead of displaying blank frames.
+
+Activity uses the plugin API's `is_dragging_atom` flag and the host compute manager's
+`active_worker_ids` collection, read by the existing animation timer. The latter is a host
+implementation detail because MoleditPy currently has no public calculation-state API.
+Failure, completion, and cancellation reactions listen to Qt's `QStatusBar.messageChanged`
+signal and recognize only MoleditPy's explicit `Calculation Error:`, `Process completed (`
+and `Halted` messages. These reactions last 3.5 seconds of visible animation time. Unrelated
+messages and stale-worker notices are ignored. Active workers take priority over reactions.
+This compatibility adapter depends on the host's English message format; independent
+calculation plugins and constrained-optimization dialogs are not monitored unless they
+emit those same messages. No host methods or worker callbacks are modified.
 
 ## Repository layout
 

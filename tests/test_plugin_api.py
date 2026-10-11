@@ -52,13 +52,9 @@ def test_select_pet_saves_changed_selection(qapp, monkeypatch):
         SimpleNamespace(identifier="mochi", name="Mochi"),
     ]
     monkeypatch.setattr(pets_in_editor, "discover", lambda: pets)
-    monkeypatch.setattr(
-        pets_in_editor, "load", lambda: {"selected": "mochi", "enabled": False}
-    )
+    monkeypatch.setattr(pets_in_editor, "load", lambda: {"selected": "mochi", "enabled": False})
     restarted = []
-    monkeypatch.setattr(
-        pets_in_editor.Controller, "start", lambda self: restarted.append(self)
-    )
+    monkeypatch.setattr(pets_in_editor.Controller, "start", lambda self: restarted.append(self))
     saved = []
     monkeypatch.setattr(pets_in_editor, "save", lambda values: saved.append(values.copy()))
     window = QWidget()
@@ -128,6 +124,7 @@ def test_initialize_registers_nested_plugin_menu_without_installed_pets(
             "Pets in Editor/Toggle Pet Visibility",
             "Pets in Editor/Size",
             "Pets in Editor/Speed",
+            "Pets in Editor/Settings",
         ]
         assert controller.overlay is None
     finally:
@@ -157,3 +154,75 @@ def test_registered_overlay_is_retired_even_after_global_controller_is_lost(
     assert not stale.isVisible()
     stale.deleteLater()
     window.close()
+
+
+def test_failed_settings_write_preserves_active_values(qapp, monkeypatch, caplog):
+    from pets_in_editor.settings import DEFAULTS
+
+    monkeypatch.setattr(pets_in_editor, "load", lambda: DEFAULTS.copy())
+    monkeypatch.setattr(pets_in_editor.Controller, "start", lambda self: None)
+    window = QWidget()
+    controller = pets_in_editor.Controller(FakeContext(window))
+    messages = []
+    monkeypatch.setattr(
+        pets_in_editor.QMessageBox, "warning", lambda *args: messages.append(args[-1])
+    )
+
+    def fail_save(values):
+        raise PermissionError("Settings file is read-only")
+
+    monkeypatch.setattr(pets_in_editor, "save", fail_save)
+    try:
+        controller.toggle()
+        assert controller.settings == DEFAULTS
+        assert messages == ["Settings file is read-only"]
+        assert "action failed: toggle" in caplog.text
+    finally:
+        window.close()
+
+
+def test_size_and_speed_updates_preserve_overlay(qapp, monkeypatch):
+    from pets_in_editor.settings import DEFAULTS
+
+    monkeypatch.setattr(pets_in_editor, "load", lambda: DEFAULTS.copy())
+    monkeypatch.setattr(pets_in_editor.Controller, "start", lambda self: None)
+    monkeypatch.setattr(pets_in_editor, "save", lambda values: None)
+    window = QWidget()
+    controller = pets_in_editor.Controller(FakeContext(window))
+    updated = []
+    overlay = SimpleNamespace(
+        _sync_geometry=lambda: updated.append("geometry"),
+        update=lambda: updated.append("paint"),
+    )
+    controller.overlay = overlay
+    try:
+        controller._apply_settings({**controller.settings, "speed": 0, "scale": 1.25})
+        assert controller.overlay is overlay
+        assert controller.settings["speed"] == 0
+        assert controller.settings["scale"] == 1.25
+        assert updated == ["geometry", "paint"]
+    finally:
+        window.close()
+
+
+def test_failed_pet_restart_restores_previous_settings(qapp, monkeypatch):
+    from pets_in_editor.settings import DEFAULTS
+
+    monkeypatch.setattr(pets_in_editor, "load", lambda: DEFAULTS.copy())
+    monkeypatch.setattr(pets_in_editor.Controller, "start", lambda self: None)
+    window = QWidget()
+    controller = pets_in_editor.Controller(FakeContext(window))
+    saved = []
+    monkeypatch.setattr(pets_in_editor, "save", lambda values: saved.append(values.copy()))
+
+    def fail_start():
+        raise ValueError("Unable to decode sprite")
+
+    monkeypatch.setattr(controller, "start", fail_start)
+    try:
+        with pytest.raises(ValueError, match="Unable to decode"):
+            controller._apply_settings({**DEFAULTS, "selected": "broken"})
+        assert controller.settings == DEFAULTS
+        assert saved[-1] == DEFAULTS
+    finally:
+        window.close()

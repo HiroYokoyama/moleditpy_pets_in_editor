@@ -104,3 +104,57 @@ def test_reject_invalid_animation_frame(tmp_path):
     (tmp_path / "pet.json").write_text(json.dumps(manifest))
     with pytest.raises(ValueError, match="references frame"):
         pet_loader.read_pet(tmp_path)
+
+
+def test_duplicate_import_preserves_existing_pet(tmp_path, monkeypatch):
+    source = tmp_path / "source"
+    write_package(source)
+    root = tmp_path / "pets"
+    monkeypatch.setattr(pet_loader, "ROOT", root)
+    pet = pet_loader.install(source)
+    original = pet.atlas.read_bytes()
+    with pytest.raises(FileExistsError, match="already installed"):
+        pet_loader.install(source)
+    assert pet.atlas.read_bytes() == original
+    assert [folder.name for folder in root.iterdir()] == ["sample"]
+
+
+def test_failed_import_leaves_no_partial_package(tmp_path, monkeypatch):
+    source = tmp_path / "source"
+    write_package(source)
+    write_sheet(source / "spritesheet.png", 100, 100)
+    root = tmp_path / "pets"
+    monkeypatch.setattr(pet_loader, "ROOT", root)
+    with pytest.raises(ValueError, match="Expected"):
+        pet_loader.install(source)
+    assert list(root.iterdir()) == []
+
+
+def test_import_without_identifier_uses_source_folder(tmp_path, monkeypatch):
+    source = tmp_path / "mochi"
+    write_package(source)
+    manifest = json.loads((source / "pet.json").read_text())
+    del manifest["id"]
+    (source / "pet.json").write_text(json.dumps(manifest))
+    monkeypatch.setattr(pet_loader, "ROOT", tmp_path / "pets")
+    pet = pet_loader.install(source / "pet.json")
+    assert pet.identifier == "mochi"
+    assert pet_loader.read_pet(pet.folder).identifier == "mochi"
+
+
+def test_discovery_skips_staging_and_logs_invalid_packages(tmp_path, monkeypatch, caplog):
+    root = tmp_path / "pets"
+    write_package(root / "good")
+    write_package(root / ".import-staged")
+    broken = root / "broken"
+    broken.mkdir()
+    (broken / "pet.json").write_text("[]")
+    monkeypatch.setattr(pet_loader, "ROOT", root)
+    assert [pet.identifier for pet in pet_loader.discover()] == ["sample"]
+    assert "Skipping invalid pet package" in caplog.text
+
+
+@pytest.mark.parametrize("value", [True, 1.5, "8"])
+def test_frame_grid_requires_integers(value):
+    with pytest.raises(ValueError, match="must be integers"):
+        pet_loader._frame_spec({"frame": {"columns": value}})

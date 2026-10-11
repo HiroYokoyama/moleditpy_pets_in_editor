@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import logging
+import math
 from pathlib import Path
 
 PATH = Path(__file__).resolve().parent / "settings.json"
+logger = logging.getLogger(__name__)
 
 DEFAULTS = {
     "enabled": True,
@@ -26,13 +29,15 @@ def _validated(obj):
         result["selected"] = obj["selected"]
 
     try:
-        result["scale"] = min(2.0, max(0.2, float(obj.get("scale", result["scale"]))))
-    except (TypeError, ValueError):
+        scale = float(obj.get("scale", result["scale"]))
+        if math.isfinite(scale):
+            result["scale"] = min(2.0, max(0.2, scale))
+    except (TypeError, ValueError, OverflowError):
         pass
 
     try:
         result["speed"] = min(400, max(0, int(obj.get("speed", result["speed"]))))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         pass
 
     return result
@@ -41,7 +46,10 @@ def _validated(obj):
 def load():
     try:
         return _validated(json.loads(PATH.read_text(encoding="utf-8")))
+    except FileNotFoundError:
+        return DEFAULTS.copy()
     except (OSError, ValueError, TypeError):
+        logger.exception("Unable to read pet settings from %s", PATH)
         return DEFAULTS.copy()
 
 

@@ -1,15 +1,18 @@
 """Pets in Editor — MoleditPy 4.x plugin entry point."""
 
+import logging
+from functools import wraps
 from pathlib import Path
 
-from PyQt6.QtWidgets import QFileDialog, QInputDialog, QMessageBox
+from PyQt6.QtWidgets import QDialog, QFileDialog, QInputDialog, QMessageBox
 
 from .overlay import PetOverlay
 from .pet_loader import discover, install
+from .preferences import PreferencesDialog
 from .settings import load, save
 
 PLUGIN_NAME = "Pets in Editor"
-PLUGIN_VERSION = "0.1.0"
+PLUGIN_VERSION = "0.2.0"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Whole-application animated Codex-compatible pet overlay."
 PLUGIN_CATEGORY = "Utility"
@@ -22,6 +25,22 @@ __version__ = PLUGIN_VERSION
 __author__ = PLUGIN_AUTHOR
 
 _controller = None
+logger = logging.getLogger(__name__)
+
+
+def ui_action(method):
+    """Report failures at the Qt callback boundary so the editor stays usable."""
+
+    @wraps(method)
+    def guarded(self, *args, **kwargs):
+        try:
+            return method(self, *args, **kwargs)
+        except Exception as exc:
+            logger.exception("Pets in Editor action failed: %s", method.__name__)
+            QMessageBox.warning(self.window, PLUGIN_NAME, str(exc))
+            return None
+
+    return guarded
 
 
 class Controller:
@@ -38,7 +57,12 @@ class Controller:
         context.add_plugin_menu("Pets in Editor/Toggle Pet Visibility", self.toggle)
         context.add_plugin_menu("Pets in Editor/Size", self.change_size)
         context.add_plugin_menu("Pets in Editor/Speed", self.change_speed)
+        context.add_plugin_menu("Pets in Editor/Settings", self.preferences)
 
+        self._start_safely()
+
+    @ui_action
+    def _start_safely(self):
         self.start()
 
     def _registered_overlay(self):
@@ -52,10 +76,9 @@ class Controller:
         # Important for hot reload:
         # module globals are recreated on reload, but PluginContext's namespaced
         # window registry survives. Always retire the previously registered
-        # overlay before creating another one.
-        self.stop()
-
+        # overlay after the replacement is ready.
         if not self.settings["enabled"]:
+            self.stop()
             return
 
         pets = discover()
@@ -67,13 +90,39 @@ class Controller:
             chosen = pets[0]
 
         if chosen is None:
+            self.stop()
             return
 
-        self.settings["selected"] = chosen.identifier
-        save(self.settings)
-
-        self.overlay = PetOverlay(self.window, chosen, self.settings)
+        values = {**self.settings, "selected": chosen.identifier}
+        overlay = PetOverlay(self.window, chosen, self.settings, self.context)
+        try:
+            if values != self.settings:
+                save(values)
+        except OSError:
+            overlay.close()
+            overlay.deleteLater()
+            raise
+        self.stop()
+        self.settings.update(values)
+        self.overlay = overlay
         self.context.register_window("pet_overlay", self.overlay)
+
+    def _apply_settings(self, values):
+        # Save first: a failed write must leave the active preferences unchanged.
+        previous = self.settings.copy()
+        save(values)
+        same_pet = values["selected"] == self.settings["selected"]
+        self.settings.update(values)
+        if same_pet and values["enabled"] and self.overlay is not None:
+            self.overlay._sync_geometry()
+            self.overlay.update()
+        else:
+            try:
+                self.start()
+            except (OSError, ValueError, RuntimeError):
+                self.settings.update(previous)
+                save(previous)
+                raise
 
     def stop(self):
         overlays = []
@@ -82,9 +131,7 @@ class Controller:
         if registered is not None:
             overlays.append(registered)
 
-        if self.overlay is not None and all(
-            self.overlay is not item for item in overlays
-        ):
+        if self.overlay is not None and all(self.overlay is not item for item in overlays):
             overlays.append(self.overlay)
 
         for overlay in overlays:
@@ -97,6 +144,7 @@ class Controller:
 
         self.overlay = None
 
+    @ui_action
     def select_pet(self):
         pets = discover()
         if not pets:
@@ -122,11 +170,15 @@ class Controller:
         if not ok:
             return
 
-        self.settings["selected"] = pets[labels.index(item)].identifier
-        self.settings["enabled"] = True
-        save(self.settings)
-        self.start()
+        self._apply_settings(
+            {
+                **self.settings,
+                "selected": pets[labels.index(item)].identifier,
+                "enabled": True,
+            }
+        )
 
+    @ui_action
     def import_pet(self):
         path, _ = QFileDialog.getOpenFileName(
             self.window,
@@ -137,22 +189,14 @@ class Controller:
         if not path:
             return
 
-        try:
-            pet = install(path)
-        except Exception as exc:
-            QMessageBox.warning(self.window, PLUGIN_NAME, str(exc))
-            return
+        pet = install(path)
+        self._apply_settings({**self.settings, "selected": pet.identifier, "enabled": True})
 
-        self.settings["selected"] = pet.identifier
-        self.settings["enabled"] = True
-        save(self.settings)
-        self.start()
-
+    @ui_action
     def toggle(self):
-        self.settings["enabled"] = not self.settings["enabled"]
-        save(self.settings)
-        self.start()
+        self._apply_settings({**self.settings, "enabled": not self.settings["enabled"]})
 
+    @ui_action
     def change_size(self):
         value, ok = QInputDialog.getDouble(
             self.window,
@@ -164,10 +208,9 @@ class Controller:
             2,
         )
         if ok:
-            self.settings["scale"] = value
-            save(self.settings)
-            self.start()
+            self._apply_settings({**self.settings, "scale": value})
 
+    @ui_action
     def change_speed(self):
         value, ok = QInputDialog.getInt(
             self.window,
@@ -178,8 +221,22 @@ class Controller:
             400,
         )
         if ok:
-            self.settings["speed"] = value
-            save(self.settings)
+            self._apply_settings({**self.settings, "speed": value})
+
+    @ui_action
+    def preferences(self):
+        pets = discover()
+        if not pets:
+            QMessageBox.information(
+                self.window, PLUGIN_NAME, "Import a pet first to configure its appearance."
+            )
+            return
+        dialog = PreferencesDialog(self.window, pets, self.settings)
+        try:
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                self._apply_settings(dialog.values())
+        finally:
+            dialog.deleteLater()
 
 
 def initialize(context):

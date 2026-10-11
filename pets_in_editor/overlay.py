@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import random
 
-from PyQt6.QtCore import QEvent, QPoint, QRect, Qt, QTimer
+from PyQt6.QtCore import QElapsedTimer, QEvent, QPoint, QRect, Qt, QTimer, pyqtSlot
 from PyQt6.QtGui import QPainter
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtWidgets import QStatusBar, QWidget
 
 from .animation import Animator
 
@@ -14,7 +15,8 @@ from .animation import Animator
 class PetOverlay(QWidget):
     """Transparent tool window that follows the MoleditPy main window."""
 
-    def __init__(self, parent_window, pet, settings):
+    def __init__(self, parent_window, pet, settings, context=None):
+        animator = Animator(pet)
         flags = (
             Qt.WindowType.Tool
             | Qt.WindowType.FramelessWindowHint
@@ -24,30 +26,35 @@ class PetOverlay(QWidget):
         super().__init__(parent_window, flags)
 
         self.parent_window = parent_window
-        self.animator = Animator(pet)
+        self.context = context
+        self.animator = animator
         self.settings = settings
         self.xpos = 30.0
         self.direction = 1
-        self.tick_count = 0
+        self.roam_elapsed = 0
+        self._closed = False
+        self.clock = QElapsedTimer()
+        self.reaction = None
+        self.reaction_remaining = 0
+        self.status_bar = parent_window.findChild(QStatusBar)
+        if self.status_bar is not None:
+            self.status_bar.messageChanged.connect(self._on_status_message)
 
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
-        parent_window.installEventFilter(self)
-        self._sync_geometry()
-
         self.timer = QTimer(self)
         self.timer.setInterval(50)
         self.timer.timeout.connect(self.step)
-        self.timer.start()
-
-        self.show()
-        self.raise_()
+        parent_window.installEventFilter(self)
+        self._sync_geometry()
 
     def _sync_geometry(self):
-        if self.parent_window.isMinimized():
+        if self._closed:
+            return
+        if self.parent_window.isMinimized() or not self.parent_window.isVisible():
             self.hide()
             return
 
@@ -58,6 +65,7 @@ class PetOverlay(QWidget):
             self.parent_window.width(),
             self.parent_window.height(),
         )
+        self.xpos = min(max(0.0, self.xpos), max(0, self.width() - self._pet_size()[0]))
         if self.parent_window.isVisible():
             self.show()
             self.raise_()
@@ -78,25 +86,20 @@ class PetOverlay(QWidget):
         return False
 
     def step(self):
-        self.tick_count += 1
-
-        scale = float(self.settings["scale"])
-        pet_width = max(1, int(self.animator.pet.frame_width * scale))
+        milliseconds = min(250, max(0, self.clock.restart()))
+        self.reaction_remaining = max(0, self.reaction_remaining - milliseconds)
+        self.roam_elapsed += milliseconds
+        pet_width, _ = self._pet_size()
         usable_width = max(0, self.width() - pet_width)
 
-        if self.tick_count % 100 == 0:
+        if self.roam_elapsed >= 5000:
+            self.roam_elapsed %= 5000
             self.direction = random.choice((-1, 0, 1))
 
-        if self.direction > 0:
-            state = "running-right"
-        elif self.direction < 0:
-            state = "running-left"
-        else:
-            state = "idle"
-
-        self.animator.set_state(state)
-        self.xpos += self.direction * float(self.settings["speed"]) * 0.05
-
+        speed = float(self.settings["speed"])
+        activity = self._activity_state()
+        if activity is None:
+            self.xpos += self.direction * speed * milliseconds / 1000
         if self.xpos <= 0:
             self.xpos = 0
             self.direction = 1
@@ -104,20 +107,64 @@ class PetOverlay(QWidget):
             self.xpos = usable_width
             self.direction = -1
 
-        self.animator.advance(50)
+        if activity is not None:
+            state = activity
+        elif speed == 0 or usable_width == 0:
+            state = "idle"
+        elif self.direction > 0:
+            state = "running-right"
+        elif self.direction < 0:
+            state = "running-left"
+        else:
+            state = "idle"
+
+        self.animator.set_state(state)
+        self.animator.advance(milliseconds)
         self.update()
+
+    def _activity_state(self):
+        # Keep the host implementation dependency at this one read-only boundary.
+        compute = getattr(self.parent_window, "compute_manager", None)
+        if getattr(compute, "active_worker_ids", ()):
+            return "waiting"
+        if self.reaction_remaining:
+            return self.reaction
+        if self.context is not None and getattr(self.context, "is_dragging_atom", False):
+            return "review"
+        return None
+
+    @pyqtSlot(str)
+    def _on_status_message(self, message):
+        # Exact messages emitted by ComputeManager/CalculationWorker. Ignore
+        # unrelated status updates and stale worker messages.
+        if message.startswith("Calculation Error:"):
+            self.reaction = "failed"
+        elif message.startswith("Process completed ("):
+            self.reaction = "waving"
+        elif message == "Halted":
+            self.reaction = "idle"
+        else:
+            return
+        self.reaction_remaining = 3500
+
+    def _pet_size(self):
+        pet = self.animator.pet
+        scale = min(
+            float(self.settings["scale"]),
+            max(1, self.width()) / pet.frame_width,
+            max(1, self.height() - 8) / pet.frame_height,
+        )
+        return max(1, int(pet.frame_width * scale)), max(1, int(pet.frame_height * scale))
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
 
         frame = self.animator.pixmap()
-        scale = float(self.settings["scale"])
-        width = max(1, int(self.animator.pet.frame_width * scale))
-        height = max(1, int(self.animator.pet.frame_height * scale))
+        width, height = self._pet_size()
 
         target = QRect(
-            int(self.xpos),
+            int(min(max(0, self.xpos), max(0, self.width() - width))),
             max(0, self.height() - height - 8),
             width,
             height,
@@ -125,10 +172,25 @@ class PetOverlay(QWidget):
         painter.drawPixmap(target, frame)
         painter.end()
 
+    def showEvent(self, event):
+        self.clock.start()
+        self.timer.start()
+        super().showEvent(event)
+
+    def hideEvent(self, event):
+        self.timer.stop()
+        super().hideEvent(event)
+
     def closeEvent(self, event):
+        if self._closed:
+            super().closeEvent(event)
+            return
+        self._closed = True
         self.timer.stop()
         try:
             self.parent_window.removeEventFilter(self)
+            if self.status_bar is not None:
+                self.status_bar.messageChanged.disconnect(self._on_status_message)
         except RuntimeError:
-            pass
+            logging.getLogger(__name__).debug("Overlay parent was already deleted", exc_info=True)
         super().closeEvent(event)

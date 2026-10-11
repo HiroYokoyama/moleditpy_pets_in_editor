@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import shutil
 import tempfile
@@ -16,6 +17,8 @@ ROOT = Path.home() / ".moleditpy" / "pets"
 
 IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
 MAX_FILE_SIZE = 40 * 1024 * 1024
+MAX_IMAGE_PIXELS = 16 * 1024 * 1024
+logger = logging.getLogger(__name__)
 
 DEFAULT_FRAME = {
     1: {"width": 192, "height": 208, "columns": 8, "rows": 9},
@@ -45,6 +48,8 @@ def _manifest_path(folder: Path) -> Path:
     path = folder / "pet.json"
     if not path.is_file():
         raise ValueError("Missing pet.json")
+    if path.stat().st_size > MAX_FILE_SIZE:
+        raise ValueError("pet.json is too large")
     return path
 
 
@@ -54,7 +59,7 @@ def _load_manifest(folder: Path) -> dict:
     except json.JSONDecodeError as exc:
         raise ValueError(f"Invalid pet.json: {exc}") from exc
     if not isinstance(manifest, dict):
-        raise ValueError("pet.json must contain a JSON object")
+        raise TypeError("pet.json must contain a JSON object")
     return manifest
 
 
@@ -72,6 +77,8 @@ def _resolve_atlas(folder: Path, manifest: dict) -> Path:
         raise ValueError("Sprite sheet must stay inside the pet directory")
     if atlas.suffix.lower() not in {".png", ".webp"} or not atlas.is_file():
         raise ValueError("Missing PNG/WebP sprite sheet")
+    if atlas.stat().st_size > MAX_FILE_SIZE:
+        raise ValueError("Sprite sheet is too large")
     return atlas
 
 
@@ -89,13 +96,10 @@ def _frame_spec(manifest: dict) -> tuple[int, int, int, int]:
     else:
         raise ValueError("frame must be an object when provided")
 
-    try:
-        width = int(frame["width"])
-        height = int(frame["height"])
-        columns = int(frame["columns"])
-        rows = int(frame["rows"])
-    except (KeyError, TypeError, ValueError) as exc:
-        raise ValueError("Invalid frame specification") from exc
+    dimensions = tuple(frame[key] for key in ("width", "height", "columns", "rows"))
+    if any(not isinstance(value, int) or isinstance(value, bool) for value in dimensions):
+        raise ValueError("Frame dimensions and grid counts must be integers")
+    width, height, columns, rows = dimensions
 
     if min(width, height, columns, rows) <= 0:
         raise ValueError("Frame dimensions and grid counts must be positive")
@@ -107,8 +111,12 @@ def _frame_spec(manifest: dict) -> tuple[int, int, int, int]:
 def _validate_image(atlas: Path, frame: tuple[int, int, int, int]) -> None:
     reader = QImageReader(str(atlas))
     size = reader.size()
+    # Release Qt's file handle before raising: Windows must be able to clean up staging.
+    reader.setFileName("")
     if not size.isValid():
         raise ValueError("Unable to read sprite sheet image")
+    if size.width() * size.height() > MAX_IMAGE_PIXELS:
+        raise ValueError("Sprite sheet exceeds the supported image size")
 
     width, height, columns, rows = frame
     expected_width = width * columns
@@ -125,11 +133,11 @@ def _validate_animations(manifest: dict, frame_count: int) -> None:
     if animations is None:
         return
     if not isinstance(animations, dict):
-        raise ValueError("animations must be an object")
+        raise TypeError("animations must be an object")
 
     for name, spec in animations.items():
         if not isinstance(name, str) or not isinstance(spec, dict):
-            raise ValueError("Each animation must be an object")
+            raise TypeError("Each animation must be an object")
         frames = spec.get("frames")
         if frames is None:
             continue
@@ -137,7 +145,7 @@ def _validate_animations(manifest: dict, frame_count: int) -> None:
             raise ValueError(f"Animation {name!r} must contain at least one frame")
         for index in frames:
             if not isinstance(index, int) or isinstance(index, bool):
-                raise ValueError(f"Animation {name!r} contains a non-integer frame")
+                raise TypeError(f"Animation {name!r} contains a non-integer frame")
             if not 0 <= index < frame_count:
                 raise ValueError(
                     f"Animation {name!r} references frame {index}, "
@@ -190,11 +198,12 @@ def discover() -> list[Pet]:
     ROOT.mkdir(parents=True, exist_ok=True)
     result = []
     for folder in sorted(ROOT.iterdir(), key=lambda p: p.name.lower()):
-        if not folder.is_dir():
+        if folder.name.startswith(".") or not folder.is_dir():
             continue
         try:
             result.append(read_pet(folder))
-        except (ValueError, OSError):
+        except (ValueError, TypeError, OSError):
+            logger.exception("Skipping invalid pet package: %s", folder)
             continue
     return result
 
@@ -210,7 +219,8 @@ def _copy_directory_package(source: Path, staging: Path) -> None:
 def _extract_zip_package(source: Path, staging: Path) -> None:
     with ZipFile(source) as archive:
         manifests = [
-            info for info in archive.infolist()
+            info
+            for info in archive.infolist()
             if not info.is_dir()
             and (info.filename == "pet.json" or info.filename.endswith("/pet.json"))
         ]
@@ -226,7 +236,7 @@ def _extract_zip_package(source: Path, staging: Path) -> None:
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise ValueError("Invalid pet.json in ZIP") from exc
         if not isinstance(manifest, dict):
-            raise ValueError("pet.json in ZIP must contain an object")
+            raise TypeError("pet.json in ZIP must contain an object")
 
         sheet_name = manifest.get("spritesheetPath", "spritesheet.webp")
         if (
@@ -258,9 +268,7 @@ def _copy_json_package(source: Path, staging: Path) -> None:
     if source.name.lower() != "pet.json":
         raise ValueError("Choose pet.json, a pet directory, or a ZIP archive")
 
-    manifest = json.loads(source.read_text(encoding="utf-8"))
-    if not isinstance(manifest, dict):
-        raise ValueError("pet.json must contain a JSON object")
+    manifest = _load_manifest(source.parent)
     atlas = _resolve_atlas(source.parent.resolve(), manifest)
 
     shutil.copy2(source, staging / "pet.json")
@@ -272,7 +280,8 @@ def install(source) -> Pet:
     source = Path(source)
     ROOT.mkdir(parents=True, exist_ok=True)
 
-    with tempfile.TemporaryDirectory() as tmp:
+    # Stage on the destination filesystem so a rename publishes the complete package.
+    with tempfile.TemporaryDirectory(prefix=".import-", dir=ROOT) as tmp:
         staging = Path(tmp).resolve()
 
         if source.is_dir():
@@ -284,10 +293,22 @@ def install(source) -> Pet:
         else:
             raise ValueError("Pet package does not exist")
 
+        manifest = _load_manifest(staging)
+        if not manifest.get("id"):
+            manifest["id"] = (
+                source.name
+                if source.is_dir()
+                else source.stem
+                if source.suffix.lower() == ".zip"
+                else source.parent.name
+            )
+            (staging / "pet.json").write_text(
+                json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
         pet = read_pet(staging)
         destination = ROOT / pet.identifier
         if destination.exists():
             raise FileExistsError(f"Pet already installed: {pet.identifier}")
 
-        shutil.copytree(staging, destination)
+        staging.rename(destination)
         return read_pet(destination)
