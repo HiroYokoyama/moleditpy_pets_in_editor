@@ -16,7 +16,6 @@ not modify molecular data.
 - Whole-application Qt overlay.
 - All commands live under `Plugins → Pets in Editor → …`.
 - **Settings** combines pet selection, visibility, size, and movement speed with an animated preview. Save applies changes; Cancel keeps your current settings.
-- **Select Pet** opens on the currently selected pet, including when visibility is disabled.
 - Pet visibility is controlled by `Toggle Pet Visibility`; no toolbar button is added.
 - The overlay is registered with MoleditPy's window registry, so `Reload All Plugins` does not duplicate pets.
 - Codex `pet.json` packages.
@@ -34,6 +33,10 @@ not modify molecular data.
 - No Codex installation or pre-existing pet directory is required.
 - Settings are stored in `pets_in_editor/settings.json` inside the plugin directory.
 - Personal settings are excluded from Git and release ZIPs.
+
+## Version 0.2.1
+
+Removes duplicate individual menu actions and input dialogs (`Select Pet`, `Size`, `Speed`) in favor of the unified `Settings` dialog, leaving `Toggle Pet Visibility`, `Import Pet`, and `Settings` in the plugin menu.
 
 ## Version 0.2.0
 

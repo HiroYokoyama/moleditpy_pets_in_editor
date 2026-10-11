@@ -4,7 +4,7 @@ import logging
 from functools import wraps
 from pathlib import Path
 
-from PyQt6.QtWidgets import QDialog, QFileDialog, QInputDialog, QMessageBox
+from PyQt6.QtWidgets import QDialog, QFileDialog, QMessageBox
 
 from .overlay import PetOverlay
 from .pet_loader import discover, install
@@ -12,7 +12,7 @@ from .preferences import PreferencesDialog
 from .settings import load, save
 
 PLUGIN_NAME = "Pets in Editor"
-PLUGIN_VERSION = "0.2.0"
+PLUGIN_VERSION = "0.2.1"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Whole-application animated Codex-compatible pet overlay."
 PLUGIN_CATEGORY = "Utility"
@@ -52,11 +52,8 @@ class Controller:
         self.settings = load()
         self.overlay = None
 
-        context.add_plugin_menu("Pets in Editor/Select Pet", self.select_pet)
-        context.add_plugin_menu("Pets in Editor/Import Pet", self.import_pet)
         context.add_plugin_menu("Pets in Editor/Toggle Pet Visibility", self.toggle)
-        context.add_plugin_menu("Pets in Editor/Size", self.change_size)
-        context.add_plugin_menu("Pets in Editor/Speed", self.change_speed)
+        context.add_plugin_menu("Pets in Editor/Import Pet", self.import_pet)
         context.add_plugin_menu("Pets in Editor/Settings", self.preferences)
 
         self._start_safely()
@@ -145,38 +142,8 @@ class Controller:
         self.overlay = None
 
     @ui_action
-    def select_pet(self):
-        pets = discover()
-        if not pets:
-            QMessageBox.information(
-                self.window,
-                PLUGIN_NAME,
-                "No pets are installed. Import a Codex pet package first.",
-            )
-            return
-
-        labels = [f"{pet.name} ({pet.identifier})" for pet in pets]
-        current = next(
-            (
-                index
-                for index, pet in enumerate(pets)
-                if pet.identifier == self.settings["selected"]
-            ),
-            0,
-        )
-        item, ok = QInputDialog.getItem(
-            self.window, PLUGIN_NAME, "Select pet:", labels, current, False
-        )
-        if not ok:
-            return
-
-        self._apply_settings(
-            {
-                **self.settings,
-                "selected": pets[labels.index(item)].identifier,
-                "enabled": True,
-            }
-        )
+    def toggle(self):
+        self._apply_settings({**self.settings, "enabled": not self.settings["enabled"]})
 
     @ui_action
     def import_pet(self):
@@ -191,37 +158,6 @@ class Controller:
 
         pet = install(path)
         self._apply_settings({**self.settings, "selected": pet.identifier, "enabled": True})
-
-    @ui_action
-    def toggle(self):
-        self._apply_settings({**self.settings, "enabled": not self.settings["enabled"]})
-
-    @ui_action
-    def change_size(self):
-        value, ok = QInputDialog.getDouble(
-            self.window,
-            PLUGIN_NAME,
-            "Pet scale:",
-            float(self.settings["scale"]),
-            0.20,
-            2.00,
-            2,
-        )
-        if ok:
-            self._apply_settings({**self.settings, "scale": value})
-
-    @ui_action
-    def change_speed(self):
-        value, ok = QInputDialog.getInt(
-            self.window,
-            PLUGIN_NAME,
-            "Movement speed (pixels/second):",
-            int(self.settings["speed"]),
-            0,
-            400,
-        )
-        if ok:
-            self._apply_settings({**self.settings, "speed": value})
 
     @ui_action
     def preferences(self):

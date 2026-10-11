@@ -1,79 +1,9 @@
 from types import SimpleNamespace
 
 import pytest
-from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QComboBox, QInputDialog, QWidget
+from PyQt6.QtWidgets import QWidget
 
 import pets_in_editor
-
-
-@pytest.mark.parametrize("enabled", [True, False])
-@pytest.mark.parametrize(
-    ("selected", "expected_index"),
-    [("buddy", 0), ("mochi", 1), ("removed-pet", 0), ("", 0)],
-)
-def test_select_pet_dialog_shows_saved_selection(
-    qapp, monkeypatch, enabled, selected, expected_index
-):
-    pets = [
-        SimpleNamespace(identifier="buddy", name="Buddy"),
-        SimpleNamespace(identifier="mochi", name="Mochi"),
-    ]
-    values = {"selected": selected, "enabled": enabled}
-    monkeypatch.setattr(pets_in_editor, "discover", lambda: pets)
-    monkeypatch.setattr(pets_in_editor, "load", lambda: values.copy())
-    monkeypatch.setattr(pets_in_editor.Controller, "start", lambda self: None)
-    window = QWidget()
-    controller = pets_in_editor.Controller(FakeContext(window))
-    observed = {}
-
-    def inspect_dialog():
-        dialog = window.findChild(QInputDialog)
-        combo = dialog.findChild(QComboBox)
-        observed["index"] = combo.currentIndex()
-        observed["text"] = combo.currentText()
-        dialog.reject()
-
-    try:
-        QTimer.singleShot(0, inspect_dialog)
-        controller.select_pet()
-        assert observed == {
-            "index": expected_index,
-            "text": f"{pets[expected_index].name} ({pets[expected_index].identifier})",
-        }
-        assert controller.settings == values
-    finally:
-        window.close()
-
-
-def test_select_pet_saves_changed_selection(qapp, monkeypatch):
-    pets = [
-        SimpleNamespace(identifier="buddy", name="Buddy"),
-        SimpleNamespace(identifier="mochi", name="Mochi"),
-    ]
-    monkeypatch.setattr(pets_in_editor, "discover", lambda: pets)
-    monkeypatch.setattr(pets_in_editor, "load", lambda: {"selected": "mochi", "enabled": False})
-    restarted = []
-    monkeypatch.setattr(pets_in_editor.Controller, "start", lambda self: restarted.append(self))
-    saved = []
-    monkeypatch.setattr(pets_in_editor, "save", lambda values: saved.append(values.copy()))
-    window = QWidget()
-    controller = pets_in_editor.Controller(FakeContext(window))
-    restarted.clear()
-
-    def choose_pet():
-        dialog = window.findChild(QInputDialog)
-        dialog.findChild(QComboBox).setCurrentIndex(0)
-        dialog.accept()
-
-    try:
-        QTimer.singleShot(0, choose_pet)
-        controller.select_pet()
-        assert saved == [{"selected": "buddy", "enabled": True}]
-        assert controller.settings == saved[0]
-        assert restarted == [controller]
-    finally:
-        window.close()
 
 
 class FakeContext:
@@ -119,11 +49,8 @@ def test_initialize_registers_nested_plugin_menu_without_installed_pets(
     try:
         assert controller.window is window
         assert [path for path, _ in context.actions] == [
-            "Pets in Editor/Select Pet",
-            "Pets in Editor/Import Pet",
             "Pets in Editor/Toggle Pet Visibility",
-            "Pets in Editor/Size",
-            "Pets in Editor/Speed",
+            "Pets in Editor/Import Pet",
             "Pets in Editor/Settings",
         ]
         assert controller.overlay is None
