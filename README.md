@@ -28,11 +28,16 @@ not modify molecular data.
 - Pets fit inside the editor window and pause while the window is hidden or minimized.
 - Size and speed changes preserve the current pet's position.
 - Pets pause their movement and use the waiting animation during built-in 2D-to-3D conversion or optimization, and the review animation while dragging 3D atoms or groups.
+- Hovering the mouse over the pet plays its jumping animation on the spot without intercepting mouse clicks or editor interactions.
 - Explicit calculation errors show the failed animation, completion messages show a wave, and cancellation shows idle briefly before normal movement resumes.
 - Pet packages are imported to `~/.moleditpy/pets/`.
 - No Codex installation or pre-existing pet directory is required.
 - Settings are stored in `pets_in_editor/settings.json` inside the plugin directory.
 - Personal settings are excluded from Git and release ZIPs.
+
+## Version 0.2.2
+
+Plays the jumping animation when hovering the mouse over the pet without moving or capturing mouse clicks, preserving full pass-through click interactions with the editor beneath.
 
 ## Version 0.2.1
 

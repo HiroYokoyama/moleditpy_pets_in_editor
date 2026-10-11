@@ -3,7 +3,7 @@ import pets_in_editor
 
 def test_plugin_metadata():
     assert pets_in_editor.PLUGIN_NAME == "Pets in Editor"
-    assert pets_in_editor.PLUGIN_VERSION == "0.2.1"
+    assert pets_in_editor.PLUGIN_VERSION == "0.2.2"
     assert pets_in_editor.PLUGIN_AUTHOR == "HiroYokoyama"
     assert pets_in_editor.PLUGIN_DESCRIPTION
     assert pets_in_editor.PLUGIN_CATEGORY == "Utility"

@@ -1,6 +1,8 @@
 from types import SimpleNamespace
 
 import pytest
+from PyQt6.QtCore import QPoint, Qt
+from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QMainWindow, QWidget
 
 from pets_in_editor.overlay import PetOverlay
@@ -139,3 +141,41 @@ def test_stale_messages_do_not_change_activity_and_busy_has_priority(qapp, pet_a
     finally:
         overlay.close()
         parent.close()
+
+
+def test_pet_jumps_when_hovered_without_moving_and_resumes(qapp, pet_asset):
+    parent = QWidget()
+    parent.resize(400, 300)
+    parent.show()
+    overlay = PetOverlay(parent, pet_asset, DEFAULTS.copy())
+    try:
+        qapp.processEvents()
+        pet_rect = overlay._pet_rect()
+        global_center = overlay.mapToGlobal(pet_rect.center())
+        QCursor.setPos(global_center)
+        qapp.processEvents()
+
+        position = overlay.xpos
+        overlay.step()
+        assert overlay.animator.state == "jumping"
+        assert overlay.xpos == position
+
+        # Move mouse away from pet
+        QCursor.setPos(overlay.mapToGlobal(QPoint(0, 0)))
+        qapp.processEvents()
+        overlay.step()
+        assert overlay.animator.state == "running-right"
+    finally:
+        overlay.close()
+        parent.close()
+
+
+def test_overlay_preserves_input_transparency(qapp, pet_asset):
+    parent = QWidget()
+    overlay = PetOverlay(parent, pet_asset, DEFAULTS.copy())
+    try:
+        assert overlay.testAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        assert bool(overlay.windowFlags() & Qt.WindowType.WindowTransparentForInput)
+    finally:
+        overlay.close()
+

@@ -6,7 +6,7 @@ import logging
 import random
 
 from PyQt6.QtCore import QElapsedTimer, QEvent, QPoint, QRect, Qt, QTimer, pyqtSlot
-from PyQt6.QtGui import QPainter
+from PyQt6.QtGui import QCursor, QPainter
 from PyQt6.QtWidgets import QStatusBar, QWidget
 
 from .animation import Animator
@@ -122,15 +122,26 @@ class PetOverlay(QWidget):
         self.animator.advance(milliseconds)
         self.update()
 
+    def _is_mouse_over_pet(self):
+        if self._closed or not self.isVisible() or not self.parent_window.isVisible():
+            return False
+        try:
+            cursor_pos = self.mapFromGlobal(QCursor.pos())
+            return self._pet_rect().contains(cursor_pos)
+        except (RuntimeError, AttributeError):
+            return False
+
     def _activity_state(self):
         # Keep the host implementation dependency at this one read-only boundary.
         compute = getattr(self.parent_window, "compute_manager", None)
         if getattr(compute, "active_worker_ids", ()):
             return "waiting"
-        if self.reaction_remaining:
-            return self.reaction
         if self.context is not None and getattr(self.context, "is_dragging_atom", False):
             return "review"
+        if self._is_mouse_over_pet():
+            return "jumping"
+        if self.reaction_remaining:
+            return self.reaction
         return None
 
     @pyqtSlot(str)
@@ -156,19 +167,21 @@ class PetOverlay(QWidget):
         )
         return max(1, int(pet.frame_width * scale)), max(1, int(pet.frame_height * scale))
 
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
-
-        frame = self.animator.pixmap()
+    def _pet_rect(self):
         width, height = self._pet_size()
-
-        target = QRect(
+        return QRect(
             int(min(max(0, self.xpos), max(0, self.width() - width))),
             max(0, self.height() - height - 8),
             width,
             height,
         )
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+
+        frame = self.animator.pixmap()
+        target = self._pet_rect()
         painter.drawPixmap(target, frame)
         painter.end()
 
