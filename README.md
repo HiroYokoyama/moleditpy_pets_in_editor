@@ -35,36 +35,6 @@ not modify molecular data.
 - Settings are stored in `pets_in_editor/settings.json` inside the plugin directory.
 - Personal settings are excluded from Git and release ZIPs.
 
-## Version 0.3.0
-
-Adds configurable wandering activity levels (Lazy / Quiet, Normal, Energetic / Active) with randomized roaming intervals and movement vs idle probabilities. Adds a **Reset** button to the Settings dialog to restore default preferences.
-
-## Version 0.2.2
-
-Plays the jumping animation when hovering the mouse over the pet without moving or capturing mouse clicks, preserving full pass-through click interactions with the editor beneath.
-
-## Version 0.2.1
-
-Removes duplicate individual menu actions and input dialogs (`Select Pet`, `Size`, `Speed`) in favor of the unified `Settings` dialog, leaving `Toggle Pet Visibility`, `Import Pet`, and `Settings` in the plugin menu.
-
-## Version 0.2.0
-
-Adds a settings dialog with an animated pet preview, improves movement and small-window behavior,
-and reports menu action failures without interrupting the editor. Imports are staged before
-publishing a complete pet package; invalid installed packages are logged and skipped. Custom
-sheets with fewer animation rows fall back to idle instead of displaying blank frames.
-
-Activity uses the plugin API's `is_dragging_atom` flag and the host compute manager's
-`active_worker_ids` collection, read by the existing animation timer. The latter is a host
-implementation detail because MoleditPy currently has no public calculation-state API.
-Failure, completion, and cancellation reactions listen to Qt's `QStatusBar.messageChanged`
-signal and recognize only MoleditPy's explicit `Calculation Error:`, `Process completed (`
-and `Halted` messages. These reactions last 3.5 seconds of visible animation time. Unrelated
-messages and stale-worker notices are ignored. Active workers take priority over reactions.
-This compatibility adapter depends on the host's English message format; independent
-calculation plugins and constrained-optimization dialogs are not monitored unless they
-emit those same messages. No host methods or worker callbacks are modified.
-
 ## Repository layout
 
 ```text

@@ -183,9 +183,9 @@ def test_overlay_preserves_input_transparency(qapp, pet_asset):
 def test_overlay_activity_level_roam_ranges(qapp, pet_asset):
     parent = QWidget()
     for level, min_ms, max_ms in [
-        ("lazy", 4000, 8000),
-        ("normal", 2500, 5500),
-        ("energetic", 1500, 3500),
+        ("lazy", 5000, 10000),
+        ("normal", 3500, 7000),
+        ("energetic", 1500, 3000),
     ]:
         overlay = PetOverlay(parent, pet_asset, {**DEFAULTS, "activity_level": level})
         try:

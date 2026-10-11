@@ -89,21 +89,22 @@ class PetOverlay(QWidget):
     def _next_roam_duration(self):
         level = self.settings.get("activity_level", "normal")
         if level == "lazy":
-            return random.randint(4000, 8000)
+            return random.randint(5000, 10000)
         if level == "energetic":
-            return random.randint(1500, 3500)
-        return random.randint(2500, 5500)
+            return random.randint(1500, 3000)
+        # Normal: slightly longer calm rests / roaming intervals (3.5s - 7.0s)
+        return random.randint(3500, 7000)
 
     def _choose_direction(self):
         level = self.settings.get("activity_level", "normal")
         if level == "lazy":
-            # Mostly idle (0), occasionally walk (-1 or 1)
-            return random.choices((-1, 0, 1), weights=(1, 5, 1))[0]
+            # Mostly idle (0: 80%), rarely walk (-1 or 1: 10% each)
+            return random.choices((-1, 0, 1), weights=(1, 8, 1))[0]
         if level == "energetic":
-            # Mostly walk (-1 or 1), rarely idle (0)
-            return random.choices((-1, 0, 1), weights=(3, 1, 3))[0]
-        # Normal: balanced walk vs rest
-        return random.choices((-1, 0, 1), weights=(2, 2, 2))[0]
+            # Highly active (walk: 80%, idle: 20%)
+            return random.choices((-1, 0, 1), weights=(4, 2, 4))[0]
+        # Normal: slightly less active (idle: ~50%, walk: ~50%)
+        return random.choices((-1, 0, 1), weights=(1, 2, 1))[0]
 
     def step(self):
         milliseconds = min(250, max(0, self.clock.restart()))
