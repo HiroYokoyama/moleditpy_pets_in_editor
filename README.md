@@ -15,7 +15,7 @@ not modify molecular data.
 
 - Whole-application Qt overlay.
 - All commands live under `Plugins → Pets in Editor → …`.
-- **Settings** combines pet selection, visibility, size, and movement speed with an animated preview. Save applies changes; Cancel keeps your current settings.
+- **Settings** combines pet selection, visibility, size, movement speed, and activity level with an animated preview and a Reset button. Save applies changes; Cancel keeps your current settings.
 - Pet visibility is controlled by `Toggle Pet Visibility`; no toolbar button is added.
 - The overlay is registered with MoleditPy's window registry, so `Reload All Plugins` does not duplicate pets.
 - Codex `pet.json` packages.
@@ -23,10 +23,10 @@ not modify molecular data.
 - Standard 1536x1872 (8x9, 192x208 cells) layout.
 - `spriteVersionNumber: 2` 1536x2288 (8x11) layout.
 - Optional manifest `frame` and `animations` data.
-- Directional movement uses the standard right/left movement rows.
+- Directional movement uses the standard right/left movement rows with randomized roaming intervals and activity levels (Lazy, Normal, Energetic).
 - Set movement speed to zero for a stationary pet with an idle animation.
 - Pets fit inside the editor window and pause while the window is hidden or minimized.
-- Size and speed changes preserve the current pet's position.
+- Size, speed, and activity changes preserve the current pet's position.
 - Pets pause their movement and use the waiting animation during built-in 2D-to-3D conversion or optimization, and the review animation while dragging 3D atoms or groups.
 - Hovering the mouse over the pet plays its jumping animation on the spot without intercepting mouse clicks or editor interactions.
 - Explicit calculation errors show the failed animation, completion messages show a wave, and cancellation shows idle briefly before normal movement resumes.
@@ -34,6 +34,10 @@ not modify molecular data.
 - No Codex installation or pre-existing pet directory is required.
 - Settings are stored in `pets_in_editor/settings.json` inside the plugin directory.
 - Personal settings are excluded from Git and release ZIPs.
+
+## Version 0.3.0
+
+Adds configurable wandering activity levels (Lazy / Quiet, Normal, Energetic / Active) with randomized roaming intervals and movement vs idle probabilities. Adds a **Reset** button to the Settings dialog to restore default preferences.
 
 ## Version 0.2.2
 

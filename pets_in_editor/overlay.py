@@ -32,6 +32,7 @@ class PetOverlay(QWidget):
         self.xpos = 30.0
         self.direction = 1
         self.roam_elapsed = 0
+        self.roam_target_ms = self._next_roam_duration()
         self._closed = False
         self.clock = QElapsedTimer()
         self.reaction = None
@@ -85,6 +86,25 @@ class PetOverlay(QWidget):
             self.hide()
         return False
 
+    def _next_roam_duration(self):
+        level = self.settings.get("activity_level", "normal")
+        if level == "lazy":
+            return random.randint(4000, 8000)
+        if level == "energetic":
+            return random.randint(1500, 3500)
+        return random.randint(2500, 5500)
+
+    def _choose_direction(self):
+        level = self.settings.get("activity_level", "normal")
+        if level == "lazy":
+            # Mostly idle (0), occasionally walk (-1 or 1)
+            return random.choices((-1, 0, 1), weights=(1, 5, 1))[0]
+        if level == "energetic":
+            # Mostly walk (-1 or 1), rarely idle (0)
+            return random.choices((-1, 0, 1), weights=(3, 1, 3))[0]
+        # Normal: balanced walk vs rest
+        return random.choices((-1, 0, 1), weights=(2, 2, 2))[0]
+
     def step(self):
         milliseconds = min(250, max(0, self.clock.restart()))
         self.reaction_remaining = max(0, self.reaction_remaining - milliseconds)
@@ -92,9 +112,10 @@ class PetOverlay(QWidget):
         pet_width, _ = self._pet_size()
         usable_width = max(0, self.width() - pet_width)
 
-        if self.roam_elapsed >= 5000:
-            self.roam_elapsed %= 5000
-            self.direction = random.choice((-1, 0, 1))
+        if self.roam_elapsed >= self.roam_target_ms:
+            self.roam_elapsed = 0
+            self.roam_target_ms = self._next_roam_duration()
+            self.direction = self._choose_direction()
 
         speed = float(self.settings["speed"])
         activity = self._activity_state()

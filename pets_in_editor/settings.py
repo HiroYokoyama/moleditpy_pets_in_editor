@@ -10,11 +10,14 @@ from pathlib import Path
 PATH = Path(__file__).resolve().parent / "settings.json"
 logger = logging.getLogger(__name__)
 
+ACTIVITY_LEVELS = ("lazy", "normal", "energetic")
+
 DEFAULTS = {
     "enabled": True,
     "selected": "",
     "scale": 0.55,
     "speed": 65,
+    "activity_level": "normal",
 }
 
 
@@ -39,6 +42,10 @@ def _validated(obj):
         result["speed"] = min(400, max(0, int(obj.get("speed", result["speed"]))))
     except (TypeError, ValueError, OverflowError):
         pass
+
+    activity_level = obj.get("activity_level")
+    if isinstance(activity_level, str) and activity_level.lower() in ACTIVITY_LEVELS:
+        result["activity_level"] = activity_level.lower()
 
     return result
 

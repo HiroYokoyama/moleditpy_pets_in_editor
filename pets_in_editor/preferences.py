@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
 )
 
 from .animation import Animator
+from .settings import DEFAULTS
 
 
 class PreferencesDialog(QDialog):
@@ -46,6 +47,17 @@ class PreferencesDialog(QDialog):
         self.speed.setValue(settings["speed"])
         self.speed.setToolTip("Set to 0 for a stationary pet with an idle animation.")
 
+        self.activity_level = QComboBox()
+        self.activity_level.addItem("Lazy / Quiet (rarely roams)", "lazy")
+        self.activity_level.addItem("Normal (moderate roaming)", "normal")
+        self.activity_level.addItem("Energetic / Active (frequently wanders)", "energetic")
+        current_activity = settings.get("activity_level", DEFAULTS["activity_level"])
+        act_idx = self.activity_level.findData(current_activity)
+        self.activity_level.setCurrentIndex(max(0, act_idx))
+        self.activity_level.setToolTip(
+            "Controls wandering behavior and how often the pet moves or rests."
+        )
+
         self.preview = QLabel()
         self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.preview.setFixedHeight(180)
@@ -58,6 +70,7 @@ class PreferencesDialog(QDialog):
         form.addRow("Visibility:", self.enabled)
         form.addRow("Size:", self.scale)
         form.addRow("Movement speed:", self.speed)
+        form.addRow("Activity level:", self.activity_level)
         layout = QVBoxLayout(self)
         layout.addWidget(self.preview)
         layout.addWidget(self.description)
@@ -66,10 +79,16 @@ class PreferencesDialog(QDialog):
         hint.setWordWrap(True)
         layout.addWidget(hint)
         self.buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+            QDialogButtonBox.StandardButton.Save
+            | QDialogButtonBox.StandardButton.Cancel
+            | QDialogButtonBox.StandardButton.RestoreDefaults
         )
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
+        reset_button = self.buttons.button(QDialogButtonBox.StandardButton.RestoreDefaults)
+        if reset_button is not None:
+            reset_button.setText("Reset")
+            reset_button.clicked.connect(self.reset_to_defaults)
         layout.addWidget(self.buttons)
 
         self.timer = QTimer(self)
@@ -78,6 +97,14 @@ class PreferencesDialog(QDialog):
         self.pet_choice.currentIndexChanged.connect(self._select_pet)
         self.scale.valueChanged.connect(self._render)
         self._select_pet()
+
+    def reset_to_defaults(self):
+        """Reset form fields to default values."""
+        self.enabled.setChecked(DEFAULTS["enabled"])
+        self.scale.setValue(DEFAULTS["scale"])
+        self.speed.setValue(DEFAULTS["speed"])
+        act_idx = self.activity_level.findData(DEFAULTS["activity_level"])
+        self.activity_level.setCurrentIndex(max(0, act_idx))
 
     def _select_pet(self):
         pet = self.pets[self.pet_choice.currentIndex()]
@@ -119,6 +146,7 @@ class PreferencesDialog(QDialog):
             "enabled": self.enabled.isChecked(),
             "scale": self.scale.value(),
             "speed": self.speed.value(),
+            "activity_level": self.activity_level.currentData(),
         }
 
     def showEvent(self, event):

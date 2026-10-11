@@ -179,3 +179,43 @@ def test_overlay_preserves_input_transparency(qapp, pet_asset):
     finally:
         overlay.close()
 
+
+def test_overlay_activity_level_roam_ranges(qapp, pet_asset):
+    parent = QWidget()
+    for level, min_ms, max_ms in [
+        ("lazy", 4000, 8000),
+        ("normal", 2500, 5500),
+        ("energetic", 1500, 3500),
+    ]:
+        overlay = PetOverlay(parent, pet_asset, {**DEFAULTS, "activity_level": level})
+        try:
+            for _ in range(50):
+                duration = overlay._next_roam_duration()
+                assert min_ms <= duration <= max_ms
+                direction = overlay._choose_direction()
+                assert direction in (-1, 0, 1)
+        finally:
+            overlay.close()
+    parent.close()
+
+
+def test_overlay_roam_elapsed_triggers_new_roam(qapp, pet_asset, monkeypatch):
+    parent = QWidget()
+    overlay = PetOverlay(parent, pet_asset, {**DEFAULTS, "activity_level": "lazy"})
+    try:
+        overlay.roam_target_ms = 100
+        overlay.roam_elapsed = 90
+        monkeypatch.setattr(overlay, "_choose_direction", lambda: -1)
+        monkeypatch.setattr(overlay, "_next_roam_duration", lambda: 3000)
+        # Advance by 20ms so roam_elapsed (110) >= roam_target_ms (100)
+        overlay.clock.restart()
+        # Mock restart returning 20ms
+        monkeypatch.setattr(overlay.clock, "restart", lambda: 20)
+        overlay.step()
+        assert overlay.direction == -1
+        assert overlay.roam_target_ms == 3000
+        assert overlay.roam_elapsed == 0
+    finally:
+        overlay.close()
+        parent.close()
+
