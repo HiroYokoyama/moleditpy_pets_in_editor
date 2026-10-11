@@ -108,8 +108,16 @@ class Controller:
             return
 
         labels = [f"{pet.name} ({pet.identifier})" for pet in pets]
+        current = next(
+            (
+                index
+                for index, pet in enumerate(pets)
+                if pet.identifier == self.settings["selected"]
+            ),
+            0,
+        )
         item, ok = QInputDialog.getItem(
-            self.window, PLUGIN_NAME, "Select pet:", labels, 0, False
+            self.window, PLUGIN_NAME, "Select pet:", labels, current, False
         )
         if not ok:
             return
