@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PyQt6.QtGui import QPixmap
+from PySide6.QtGui import QPixmap
 
 
 @dataclass(frozen=True)

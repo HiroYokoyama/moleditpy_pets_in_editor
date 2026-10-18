@@ -3,7 +3,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
-from PyQt6.QtGui import QImage
+from PySide6.QtGui import QImage
 
 from pets_in_editor import pet_loader
 

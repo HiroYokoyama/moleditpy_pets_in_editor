@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 import pytest
-from PyQt6.QtWidgets import QWidget
+from PySide6.QtWidgets import QWidget
 
 import pets_in_editor
 

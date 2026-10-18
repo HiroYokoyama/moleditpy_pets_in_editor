@@ -104,7 +104,7 @@ drive look-direction poses.
 ## Tests
 
 ```bash
-python -m pip install pytest PyQt6
+python -m pip install pytest PySide6
 QT_QPA_PLATFORM=offscreen python -m pytest tests -v
 ```
 

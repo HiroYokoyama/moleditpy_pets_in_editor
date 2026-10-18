@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from zipfile import ZipFile
 
-from PyQt6.QtGui import QImageReader
+from PySide6.QtGui import QImageReader
 
 ROOT = Path.home() / ".moleditpy" / "pets"
 

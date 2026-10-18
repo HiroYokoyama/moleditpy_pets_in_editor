@@ -1,6 +1,6 @@
 from dataclasses import replace
 
-from PyQt6.QtWidgets import QDialogButtonBox
+from PySide6.QtWidgets import QDialogButtonBox
 
 from pets_in_editor.preferences import PreferencesDialog
 from pets_in_editor.settings import DEFAULTS

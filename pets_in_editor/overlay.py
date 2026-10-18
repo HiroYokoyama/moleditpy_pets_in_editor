@@ -5,9 +5,9 @@ from __future__ import annotations
 import logging
 import random
 
-from PyQt6.QtCore import QElapsedTimer, QEvent, QPoint, QRect, Qt, QTimer, pyqtSlot
-from PyQt6.QtGui import QCursor, QPainter
-from PyQt6.QtWidgets import QStatusBar, QWidget
+from PySide6.QtCore import QElapsedTimer, QEvent, QPoint, QRect, Qt, QTimer, Slot
+from PySide6.QtGui import QCursor, QPainter
+from PySide6.QtWidgets import QStatusBar, QWidget
 
 from .animation import Animator
 
@@ -166,7 +166,7 @@ class PetOverlay(QWidget):
             return self.reaction
         return None
 
-    @pyqtSlot(str)
+    @Slot(str)
     def _on_status_message(self, message):
         # Exact messages emitted by ComputeManager/CalculationWorker. Ignore
         # unrelated status updates and stale worker messages.

@@ -3,7 +3,7 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 
 
 @pytest.fixture(scope="session")
@@ -16,7 +16,7 @@ def qapp():
 def pet_asset(tmp_path, qapp):
     import json
 
-    from PyQt6.QtGui import QColor, QImage
+    from PySide6.QtGui import QColor, QImage
 
     from pets_in_editor.pet_loader import read_pet
 

@@ -1,9 +1,9 @@
 from types import SimpleNamespace
 
 import pytest
-from PyQt6.QtCore import QPoint, Qt
-from PyQt6.QtGui import QCursor
-from PyQt6.QtWidgets import QMainWindow, QWidget
+from PySide6.QtCore import QPoint, Qt
+from PySide6.QtGui import QCursor
+from PySide6.QtWidgets import QMainWindow, QWidget
 
 from pets_in_editor.overlay import PetOverlay
 from pets_in_editor.settings import DEFAULTS
