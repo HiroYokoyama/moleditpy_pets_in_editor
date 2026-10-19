@@ -1,7 +1,7 @@
 # Pets in Editor for MoleditPy
 
 [![Tests](https://github.com/HiroYokoyama/moleditpy_pets_in_editor/actions/workflows/tests.yml/badge.svg)](https://github.com/HiroYokoyama/moleditpy_pets_in_editor/actions/workflows/tests.yml)
-[![MoleditPy](https://img.shields.io/badge/MoleditPy->=4.0.0-3577F7)](https://github.com/HiroYokoyama/python_molecular_editor)
+[![MoleditPy](https://img.shields.io/badge/MoleditPy-5.x-3577F7)](https://github.com/HiroYokoyama/python_molecular_editor)
 [![GitHub tag](https://img.shields.io/github/v/tag/HiroYokoyama/moleditpy_pets_in_editor?label=version)](https://github.com/HiroYokoyama/moleditpy_pets_in_editor/tags)
 [![GitHub Downloads](https://img.shields.io/github/downloads/HiroYokoyama/moleditpy_pets_in_editor/total)](https://github.com/HiroYokoyama/moleditpy_pets_in_editor/releases)
 
@@ -104,7 +104,7 @@ drive look-direction poses.
 ## Tests
 
 ```bash
-python -m pip install pytest PyQt6
+python -m pip install pytest PySide6
 QT_QPA_PLATFORM=offscreen python -m pytest tests -v
 ```
 
@@ -127,4 +127,8 @@ so runtime testing in the target desktop environment is recommended.
 
 ## License
 
-GPL-3.0.
+LGPL-3.0-or-later.
+
+## Licensing scope
+
+First-party code in this migration is LGPL-3.0-or-later. See [LICENSE](LICENSE), [COPYING](COPYING) and [dependency/provenance terms](LICENSING.md). Third-party components and historical releases retain their own terms.

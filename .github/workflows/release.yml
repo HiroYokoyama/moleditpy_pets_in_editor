@@ -54,7 +54,7 @@ jobs:
       - name: Build release package
         run: |
           TAG="$VERSION"
-          cp README.md LICENSE pets_in_editor/
+          cp README.md LICENSE COPYING LICENSING.md pets_in_editor/
           zip -r "pets_in_editor_${TAG}.zip" pets_in_editor/ --exclude "*/__pycache__/*" "*/.git/*" "*/settings.json" "*/settings.tmp"
 
       - name: Create GitHub Release

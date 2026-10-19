@@ -3,11 +3,11 @@ import pets_in_editor
 
 def test_plugin_metadata():
     assert pets_in_editor.PLUGIN_NAME == "Pets in Editor"
-    assert pets_in_editor.PLUGIN_VERSION == "0.3.1"
+    assert pets_in_editor.PLUGIN_VERSION == "0.4.0"
     assert pets_in_editor.PLUGIN_AUTHOR == "HiroYokoyama"
     assert pets_in_editor.PLUGIN_DESCRIPTION
     assert pets_in_editor.PLUGIN_CATEGORY == "Utility"
-    assert pets_in_editor.PLUGIN_SUPPORTED_MOLEDITPY_VERSION == "4.*"
+    assert pets_in_editor.PLUGIN_SUPPORTED_MOLEDITPY_VERSION == ">=5.0.0, <6.0.0"
     assert "Utility" in pets_in_editor.PLUGIN_TAGS
     assert isinstance(pets_in_editor.PLUGIN_DEPENDENCIES, list)
     assert isinstance(pets_in_editor.PLUGIN_OPTIONAL_DEPENDENCIES, list)

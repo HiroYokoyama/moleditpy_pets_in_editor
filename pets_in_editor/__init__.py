@@ -4,7 +4,7 @@ import logging
 from functools import wraps
 from pathlib import Path
 
-from PyQt6.QtWidgets import QDialog, QFileDialog, QMessageBox
+from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox
 
 from .overlay import PetOverlay
 from .pet_loader import discover, install
@@ -12,11 +12,11 @@ from .preferences import PreferencesDialog
 from .settings import load, save
 
 PLUGIN_NAME = "Pets in Editor"
-PLUGIN_VERSION = "0.3.1"
+PLUGIN_VERSION = "0.4.0"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Whole-application animated Codex-compatible pet overlay."
 PLUGIN_CATEGORY = "Utility"
-PLUGIN_SUPPORTED_MOLEDITPY_VERSION = "4.*"
+PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=5.0.0, <6.0.0"
 PLUGIN_TAGS = ["Utility"]
 PLUGIN_DEPENDENCIES = []
 PLUGIN_OPTIONAL_DEPENDENCIES = []
