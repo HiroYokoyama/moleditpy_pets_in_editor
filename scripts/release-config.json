@@ -1,0 +1,21 @@
+{
+  "source": "pets_in_editor/__init__.py",
+  "title": "Pets in Editor",
+  "package": "pets_in_editor",
+  "archive": "pets_in_editor_{version}.zip",
+  "assets": [
+    "pets_in_editor_{version}.zip"
+  ],
+  "include": [
+    "README.md",
+    "LICENSE",
+    "COPYING",
+    "LICENSING.md"
+  ],
+  "exclude": [
+    "*/__pycache__/*",
+    "*/.git/*",
+    "*/settings.json",
+    "*/settings.tmp"
+  ]
+}
