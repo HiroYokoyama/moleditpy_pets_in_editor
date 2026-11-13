@@ -12,7 +12,7 @@ from .preferences import PreferencesDialog
 from .settings import load, save
 
 PLUGIN_NAME = "Pets in Editor"
-PLUGIN_VERSION = "0.4.0"
+PLUGIN_VERSION = "1.0.0"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Whole-application animated Codex-compatible pet overlay."
 PLUGIN_CATEGORY = "Utility"
